@@ -1,10 +1,10 @@
-package models
+package domain
 
 import "time"
 
 type Category struct {
 	ID   int    `json:"id"`
-	Name string `json: "name"`
+	Name string `json:"name"`
 }
 
 type Product struct {
@@ -12,5 +12,5 @@ type Product struct {
 	Name       string    `json:"name"`
 	Price      float64   `json:"price"`
 	CategoryID int       `json:"category_id"`
-	CreatedAt  time.Time `json:"category_at"`
+	CreatedAt  time.Time `json:"created_at"`
 }

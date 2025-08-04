@@ -1,34 +1,78 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"time"
 
-	"github.com/Lovodia/Product.git/internal/db"
-	"github.com/Lovodia/Product.git/internal/handlers"
+	"github.com/Lovodia/Product/internal/config"
+	"github.com/Lovodia/Product/internal/db"
+	httpDelivery "github.com/Lovodia/Product/internal/delivery/http"
+	"github.com/Lovodia/Product/internal/infrastructure/postgres"
+	"github.com/Lovodia/Product/internal/usecase"
 	"github.com/gorilla/mux"
 )
 
 func main() {
-	err := db.InitDB()
+	cfg, err := config.Load()
 	if err != nil {
-		log.Fatal("Error connecting to DB", err)
+		log.Fatal("Failed to Load config:", err)
 	}
+
+	database, err := db.New(cfg)
+	if err != nil {
+		log.Fatal("Failed to connect to BD:", err)
+	}
+	defer database.Pool.Close()
+
+	productRepo := postgres.NewProductRepo(database.Pool)
+	productUC := usecase.NewProductUseCase(productRepo)
+	productHandler := httpDelivery.NewProductHandler(productUC)
+
+	categoryRepo := postgres.NewCategoryRepo(database.Pool)
+	categoryUC := usecase.NewCategoryUseCase(categoryRepo)
+	categoryHandler := httpDelivery.NewCategoryHandler(categoryUC)
 
 	r := mux.NewRouter()
 
-	r.HandleFunc("/categories", handlers.GetAllCategories).Methods("GET")
-	r.HandleFunc("/categories/{id:[0-9]+}", handlers.GetCategoriesByID).Methods("GET")
-	r.HandleFunc("/categories", handlers.CreateCategory).Methods("POST")
-	r.HandleFunc("/categories/{id:[0-9]+}", handlers.UpdateCategory).Methods("PUT")
-	r.HandleFunc("/categories/{id:[0-9]+}", handlers.DeleteCategory).Methods("DELETE")
+	r.HandleFunc("/product", productHandler.GetAll).Methods("GET")
+	r.HandleFunc("/product/{id:[0-9]+}", productHandler.GetByID).Methods("GET")
+	r.HandleFunc("/product", productHandler.Create).Methods("Post")
+	r.HandleFunc("/product/{id:[0-9]+}", productHandler.Update).Methods("PUT")
+	r.HandleFunc("/product/{id:[0-9]+}", productHandler.Delete).Methods("DELETE")
 
-	r.HandleFunc("/products", handlers.GetAllProducts).Methods("GET")
-	r.HandleFunc("/products/{id:[0-9]+}", handlers.GetProductByID).Methods("GET")
-	r.HandleFunc("/products", handlers.CreateProduct).Methods("POST")
-	r.HandleFunc("/products/{id:[0-9]+}", handlers.UpdateProduct).Methods("PUT")
-	r.HandleFunc("/products/{id:[0-9]+}", handlers.DeleteProduct).Methods("DELETE")
+	r.HandleFunc("/category", categoryHandler.GetAll).Methods("GET")
+	r.HandleFunc("/category/{id:[0-9]+}", categoryHandler.GetByID).Methods("GET")
+	r.HandleFunc("/category", categoryHandler.Create).Methods("POST")
+	r.HandleFunc("/category/{id:[0-9]+}", categoryHandler.Update).Methods("PUT")
+	r.HandleFunc("/category/{id:[0-9]+}", categoryHandler.Delete).Methods("DELETE")
 
-	log.Println("The server is running on http://localhost:8080")
-	log.Fatal(http.ListenAndServe(":8080", r))
+	srv := &http.Server{
+		Addr:    ":" + cfg.Server.Port,
+		Handler: r,
+	}
+
+	go func() {
+		log.Println("Server is running at http://localhost:" + cfg.Server.Port)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Server error: %v", err)
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt)
+	<-quit
+
+	log.Println("Sutting down server...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Fatalf("Server forced to shutdown: %v", err)
+	}
+	log.Println("Server exited gracefuly")
 }
