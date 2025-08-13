@@ -50,13 +50,13 @@ func (h *CategoryHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	created, err := h.UC.Create(category)
+	id, err := h.UC.Create(category)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(created)
+	json.NewEncoder(w).Encode(map[string]int{"id": id})
 }
 
 func (h *CategoryHandler) Update(w http.ResponseWriter, r *http.Request) {
@@ -75,11 +75,15 @@ func (h *CategoryHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	category.ID = id
 
-	if err := h.UC.Update(category); err != nil {
+	updated, err := h.UC.Update(category)
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
+	if !updated {
+		http.Error(w, "Category not found", http.StatusNotFound)
+		return
+	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -91,8 +95,13 @@ func (h *CategoryHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.UC.Delete(id); err != nil {
+	deleted, err := h.UC.Delete(id)
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if !deleted {
+		http.Error(w, "Category not found", http.StatusNotFound)
 		return
 	}
 

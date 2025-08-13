@@ -8,15 +8,15 @@ import (
 )
 
 type ProductRepo struct {
-	DB *pgxpool.Pool
+	db *pgxpool.Pool
 }
 
 func NewProductRepo(db *pgxpool.Pool) *ProductRepo {
-	return &ProductRepo{DB: db}
+	return &ProductRepo{db: db}
 }
 
 func (r *ProductRepo) GetAll() ([]domain.Product, error) {
-	rows, err := r.DB.Query(context.Background(), "SELECT id, name, price, category_id, created_at FROM products")
+	rows, err := r.db.Query(context.Background(), "SELECT id, name, price, category_id, created_at FROM products")
 	if err != nil {
 		return nil, err
 	}
@@ -35,7 +35,7 @@ func (r *ProductRepo) GetAll() ([]domain.Product, error) {
 
 func (r *ProductRepo) GetByID(id int) (domain.Product, error) {
 	var p domain.Product
-	err := r.DB.QueryRow(context.Background(),
+	err := r.db.QueryRow(context.Background(),
 		"SELECT id, name, price, category_id, created_at FROM products WHERE id = $1", id).Scan(
 		&p.ID, &p.Name, &p.Price, &p.CategoryID, &p.CreatedAt)
 
@@ -45,28 +45,35 @@ func (r *ProductRepo) GetByID(id int) (domain.Product, error) {
 	return p, nil
 }
 
-func (r *ProductRepo) Create(p domain.Product) (domain.Product, error) {
-	err := r.DB.QueryRow(
+func (r *ProductRepo) Create(p domain.Product) (int, error) {
+	var id int
+	err := r.db.QueryRow(
 		context.Background(),
 		"INSERT INTO products(name, price, category_id, created_at) VALUES($1, $2, $3, NOW()) RETURNING id, created_at",
 		p.Name, p.Price, p.CategoryID).Scan(&p.ID, &p.CreatedAt)
 
 	if err != nil {
-		return domain.Product{}, err
+		return 0, err
 	}
-	return p, nil
+	return id, nil
 }
 
-func (r *ProductRepo) Update(id int, p domain.Product) error {
-	_, err := r.DB.Exec(
+func (r *ProductRepo) Update(id int, p domain.Product) (bool, error) {
+	cmdTag, err := r.db.Exec(
 		context.Background(),
 		"UPDATE products SET name = $1, price = $2, category_id = $3 WHERE id = $4",
 		p.Name, p.Price, p.CategoryID, id,
 	)
-	return err
+	if err != nil {
+		return false, err
+	}
+	return cmdTag.RowsAffected() > 0, nil
 }
 
-func (r *ProductRepo) Delete(id int) error {
-	_, err := r.DB.Exec(context.Background(), "DELETE FROM products WHERE id =$1", id)
-	return err
+func (r *ProductRepo) Delete(id int) (bool, error) {
+	cmdTag, err := r.db.Exec(context.Background(), "DELETE FROM products WHERE id =$1", id)
+	if err != nil {
+		return false, err
+	}
+	return cmdTag.RowsAffected() > 0, nil
 }

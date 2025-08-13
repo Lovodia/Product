@@ -2,24 +2,24 @@ package postgres
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/Lovodia/Product/internal/domain"
-	"github.com/Lovodia/Product/internal/repository"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type CategoryRepo struct {
-	DB *pgxpool.Pool
+	db *pgxpool.Pool
 }
 
-func NewCategoryRepo(db *pgxpool.Pool) repository.CategoryRepository {
-	return &CategoryRepo{DB: db}
+func NewCategoryRepo(db *pgxpool.Pool) *CategoryRepo {
+	return &CategoryRepo{db: db}
 }
 
 func (r *CategoryRepo) GetAll() ([]domain.Category, error) {
-	rows, err := r.DB.Query(context.Background(), "SELECT id, name FROM categories")
+	rows, err := r.db.Query(context.Background(), "SELECT id, name FROM categories")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("query categories failed: %w", err)
 	}
 	defer rows.Close()
 
@@ -27,7 +27,7 @@ func (r *CategoryRepo) GetAll() ([]domain.Category, error) {
 	for rows.Next() {
 		var c domain.Category
 		if err := rows.Scan(&c.ID, &c.Name); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("scan category failed: %w", err)
 		}
 		categories = append(categories, c)
 	}
@@ -36,29 +36,37 @@ func (r *CategoryRepo) GetAll() ([]domain.Category, error) {
 
 func (r *CategoryRepo) GetByID(id int) (domain.Category, error) {
 	var c domain.Category
-	err := r.DB.QueryRow(context.Background(), "SELECT id, name FROM categories WHERE id=$1", id).
+	err := r.db.QueryRow(context.Background(), "SELECT id, name FROM categories WHERE id=$1", id).
 		Scan(&c.ID, &c.Name)
-	return c, err
+	if err != nil {
+		return domain.Category{}, fmt.Errorf("query category by id=%d failed: %w", id, err)
+	}
+	return c, nil
 }
 
-func (r *CategoryRepo) Create(category domain.Category) (domain.Category, error) {
+func (r *CategoryRepo) Create(category domain.Category) (int, error) {
 	var id int
-	err := r.DB.QueryRow(context.Background(),
+	err := r.db.QueryRow(context.Background(),
 		"INSERT INTO categories(name) VALUES($1) RETURNING id", category.Name).Scan(&id)
 	if err != nil {
-		return domain.Category{}, err
+		return 0, err
 	}
-	category.ID = id
-	return category, nil
+	return id, nil
 }
 
-func (r *CategoryRepo) Update(category domain.Category) error {
-	_, err := r.DB.Exec(context.Background(),
+func (r *CategoryRepo) Update(category domain.Category) (bool, error) {
+	cmdTag, err := r.db.Exec(context.Background(),
 		"UPDATE categories SET name=$1 WHERE id=$2", category.Name, category.ID)
-	return err
+	if err != nil {
+		return false, err
+	}
+	return cmdTag.RowsAffected() > 0, nil
 }
 
-func (r *CategoryRepo) Delete(id int) error {
-	_, err := r.DB.Exec(context.Background(), "DELETE FROM categories WHERE id=$1", id)
-	return err
+func (r *CategoryRepo) Delete(id int) (bool, error) {
+	cmdTag, err := r.db.Exec(context.Background(), "DELETE FROM categories WHERE id=$1", id)
+	if err != nil {
+		return false, err
+	}
+	return cmdTag.RowsAffected() > 0, nil
 }

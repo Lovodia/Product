@@ -50,13 +50,13 @@ func (h *ProductHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	created, err := h.UC.Create(product)
+	id, err := h.UC.Create(product)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(created)
+	json.NewEncoder(w).Encode(map[string]int{"id": id})
 }
 
 func (h *ProductHandler) Update(w http.ResponseWriter, r *http.Request) {
@@ -73,8 +73,13 @@ func (h *ProductHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.UC.Update(id, product); err != nil {
+	updated, err := h.UC.Update(id, product)
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if !updated {
+		http.Error(w, "Product not found", http.StatusNotFound)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -88,8 +93,13 @@ func (h *ProductHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.UC.Delete(id); err != nil {
+	deleted, err := h.UC.Delete(id)
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if !deleted {
+		http.Error(w, "Product not found", http.StatusNotFound)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

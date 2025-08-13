@@ -2,45 +2,77 @@ package main
 
 import (
 	"context"
-	"log"
+	"flag"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"time"
 
 	"github.com/Lovodia/Product/internal/config"
 	"github.com/Lovodia/Product/internal/db"
 	httpDelivery "github.com/Lovodia/Product/internal/delivery/http"
-	"github.com/Lovodia/Product/internal/infrastructure/postgres"
+	"github.com/Lovodia/Product/internal/infrastructure"
 	"github.com/Lovodia/Product/internal/usecase"
 	"github.com/gorilla/mux"
 )
 
 func main() {
+	migrate := flag.Bool("migrate", false, "Run database migrations and exit")
+	flag.Parse()
+
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatal("Failed to Load config:", err)
+		slog.Error("Failed to Load config:", slog.Any("err", err))
+		os.Exit(1)
+	}
+
+	var level slog.Level
+	if err := level.UnmarshalText([]byte(strings.ToLower(cfg.LogLevel))); err != nil {
+		slog.Warn("invalid log level, falling back to info", slog.String("provited", cfg.LogLevel))
+		level = slog.LevelInfo
+	}
+
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		Level: level,
+	}))
+	slog.SetDefault(logger)
+
+	slog.Info("Configuration loaded", slog.Any("config", cfg))
+
+	if *migrate {
+		slog.Info("Running migrations...")
+		if err := db.RunMigrations(cfg); err != nil {
+			slog.Error("migrations failed", slog.Any("error", err))
+			os.Exit(1)
+		}
+		slog.Info("Migrations applied successfully")
+		return
 	}
 
 	database, err := db.New(cfg)
 	if err != nil {
-		log.Fatal("Failed to connect to BD:", err)
+		slog.Error("failed to connect to BD", slog.Any("error", err))
+		os.Exit(1)
 	}
-	defer database.Pool.Close()
+	defer database.Close()
 
-	productRepo := postgres.NewProductRepo(database.Pool)
-	productUC := usecase.NewProductUseCase(productRepo)
+	slog.Info("Database connection established")
+
+	infrFactory := infrastructure.NewRepositoryFactory(database.Pool())
+
+	productUC := usecase.NewProductUseCase(infrFactory.ProductRepo)
+	categoryUC := usecase.NewCategoryUseCase(infrFactory.CategoryRepo)
+
 	productHandler := httpDelivery.NewProductHandler(productUC)
-
-	categoryRepo := postgres.NewCategoryRepo(database.Pool)
-	categoryUC := usecase.NewCategoryUseCase(categoryRepo)
 	categoryHandler := httpDelivery.NewCategoryHandler(categoryUC)
 
 	r := mux.NewRouter()
 
 	r.HandleFunc("/product", productHandler.GetAll).Methods("GET")
 	r.HandleFunc("/product/{id:[0-9]+}", productHandler.GetByID).Methods("GET")
-	r.HandleFunc("/product", productHandler.Create).Methods("Post")
+	r.HandleFunc("/product", productHandler.Create).Methods("POST")
 	r.HandleFunc("/product/{id:[0-9]+}", productHandler.Update).Methods("PUT")
 	r.HandleFunc("/product/{id:[0-9]+}", productHandler.Delete).Methods("DELETE")
 
@@ -56,9 +88,10 @@ func main() {
 	}
 
 	go func() {
-		log.Println("Server is running at http://localhost:" + cfg.Server.Port)
+		slog.Info("Server starting", slog.String("addr", srv.Addr))
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Server error: %v", err)
+			slog.Error("server failed", slog.Any("error", err))
+			os.Exit(1)
 		}
 	}()
 
@@ -66,13 +99,14 @@ func main() {
 	signal.Notify(quit, os.Interrupt)
 	<-quit
 
-	log.Println("Sutting down server...")
+	slog.Warn("Sutting down server...")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	if err := srv.Shutdown(ctx); err != nil {
-		log.Fatalf("Server forced to shutdown: %v", err)
+		slog.Error("server forced to shutdown", slog.Any("error", err))
+		os.Exit(1)
 	}
-	log.Println("Server exited gracefuly")
+	slog.Info("Server exited gracefuly")
 }
