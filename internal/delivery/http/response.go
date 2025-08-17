@@ -9,6 +9,12 @@ import (
 	"github.com/Lovodia/Product/internal/domain"
 )
 
+func renderJSON(w http.ResponseWriter, status int, data interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(data)
+}
+
 func renderError(w http.ResponseWriter, r *http.Request, err error) {
 	status := http.StatusInternalServerError
 
@@ -20,8 +26,6 @@ func renderError(w http.ResponseWriter, r *http.Request, err error) {
 		status = http.StatusBadRequest
 	case errors.Is(err, domain.ErrConflict):
 		status = http.StatusConflict
-	default:
-		status = http.StatusInternalServerError
 	}
 
 	w.Header().Set("Content-Type", "application/json")

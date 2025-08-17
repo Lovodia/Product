@@ -14,8 +14,14 @@ type ProductHandler struct {
 	UC *usecase.ProductUseCase
 }
 
-func NewProductHandler(uc *usecase.ProductUseCase) *ProductHandler {
-	return &ProductHandler{UC: uc}
+func NewProductHandler(r *mux.Router, uc *usecase.ProductUseCase) {
+	handler := &ProductHandler{UC: uc}
+
+	r.HandleFunc("/products", handler.GetAll).Methods(http.MethodGet)
+	r.HandleFunc("/products/{id}", handler.GetByID).Methods(http.MethodGet)
+	r.HandleFunc("/products", handler.Create).Methods(http.MethodPost)
+	r.HandleFunc("/products/{id}", handler.Update).Methods(http.MethodPut)
+	r.HandleFunc("/products/{id}", handler.Delete).Methods(http.MethodDelete)
 }
 
 func (h *ProductHandler) GetAll(w http.ResponseWriter, r *http.Request) {
@@ -24,7 +30,7 @@ func (h *ProductHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 		renderError(w, r, err)
 		return
 	}
-	json.NewEncoder(w).Encode(products)
+	renderJSON(w, http.StatusOK, products)
 }
 
 func (h *ProductHandler) GetByID(w http.ResponseWriter, r *http.Request) {
@@ -40,13 +46,13 @@ func (h *ProductHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 		renderError(w, r, err)
 		return
 	}
-	json.NewEncoder(w).Encode(product)
+	renderJSON(w, http.StatusOK, product)
 }
 
 func (h *ProductHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var product domain.Product
 	if err := json.NewDecoder(r.Body).Decode(&product); err != nil {
-		renderError(w, r, domain.ErrBadRequest)
+		renderError(w, r, domain.ErrInvalidImput)
 		return
 	}
 
@@ -55,8 +61,7 @@ func (h *ProductHandler) Create(w http.ResponseWriter, r *http.Request) {
 		renderError(w, r, err)
 		return
 	}
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]int{"id": id})
+	renderJSON(w, http.StatusCreated, map[string]int{"id": id})
 }
 
 func (h *ProductHandler) Update(w http.ResponseWriter, r *http.Request) {
@@ -69,7 +74,7 @@ func (h *ProductHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	var product domain.Product
 	if err := json.NewDecoder(r.Body).Decode(&product); err != nil {
-		renderError(w, r, domain.ErrBadRequest)
+		renderError(w, r, domain.ErrInvalidImput)
 		return
 	}
 

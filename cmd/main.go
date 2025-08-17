@@ -34,11 +34,8 @@ func main() {
 		level = slog.LevelInfo
 	}
 
-	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-		Level: level,
-	}))
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: level}))
 	slog.SetDefault(logger)
-
 	slog.Info("Configuration loaded", slog.Any("config", cfg))
 
 	if *migrate {
@@ -57,30 +54,15 @@ func main() {
 		os.Exit(1)
 	}
 	defer database.Close()
-
 	slog.Info("Database connection established")
 
 	infrFactory := infrastructure.NewRepositoryFactory(database.Pool())
-
 	productUC := usecase.NewProductUseCase(infrFactory.ProductRepo)
 	categoryUC := usecase.NewCategoryUseCase(infrFactory.CategoryRepo)
 
-	productHandler := httpDelivery.NewProductHandler(productUC)
-	categoryHandler := httpDelivery.NewCategoryHandler(categoryUC)
-
 	r := mux.NewRouter()
-
-	r.HandleFunc("/product", productHandler.GetAll).Methods("GET")
-	r.HandleFunc("/product/{id:[0-9]+}", productHandler.GetByID).Methods("GET")
-	r.HandleFunc("/product", productHandler.Create).Methods("POST")
-	r.HandleFunc("/product/{id:[0-9]+}", productHandler.Update).Methods("PUT")
-	r.HandleFunc("/product/{id:[0-9]+}", productHandler.Delete).Methods("DELETE")
-
-	r.HandleFunc("/category", categoryHandler.GetAll).Methods("GET")
-	r.HandleFunc("/category/{id:[0-9]+}", categoryHandler.GetByID).Methods("GET")
-	r.HandleFunc("/category", categoryHandler.Create).Methods("POST")
-	r.HandleFunc("/category/{id:[0-9]+}", categoryHandler.Update).Methods("PUT")
-	r.HandleFunc("/category/{id:[0-9]+}", categoryHandler.Delete).Methods("DELETE")
+	httpDelivery.NewProductHandler(r, productUC)
+	httpDelivery.NewCategoryHandler(r, categoryUC)
 
 	srv := &http.Server{
 		Addr:    ":" + cfg.Server.Port,

@@ -14,8 +14,14 @@ type CategoryHandler struct {
 	UC *usecase.CategoryUseCase
 }
 
-func NewCategoryHandler(uc *usecase.CategoryUseCase) *CategoryHandler {
-	return &CategoryHandler{UC: uc}
+func NewCategoryHandler(r *mux.Router, uc *usecase.CategoryUseCase) {
+	handler := &CategoryHandler{UC: uc}
+
+	r.HandleFunc("/categories", handler.GetAll).Methods(http.MethodGet)
+	r.HandleFunc("/categories/{id}", handler.GetByID).Methods(http.MethodGet)
+	r.HandleFunc("/categories", handler.Create).Methods(http.MethodPost)
+	r.HandleFunc("/categories/{id}", handler.Update).Methods(http.MethodPut)
+	r.HandleFunc("/categories/{id}", handler.Delete).Methods(http.MethodDelete)
 }
 
 func (h *CategoryHandler) GetAll(w http.ResponseWriter, r *http.Request) {
@@ -24,7 +30,7 @@ func (h *CategoryHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 		renderError(w, r, err)
 		return
 	}
-	json.NewEncoder(w).Encode(categories)
+	renderJSON(w, http.StatusOK, categories)
 }
 
 func (h *CategoryHandler) GetByID(w http.ResponseWriter, r *http.Request) {
@@ -40,13 +46,13 @@ func (h *CategoryHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 		renderError(w, r, err)
 		return
 	}
-	json.NewEncoder(w).Encode(category)
+	renderJSON(w, http.StatusOK, category)
 }
 
 func (h *CategoryHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var category domain.Category
 	if err := json.NewDecoder(r.Body).Decode(&category); err != nil {
-		renderError(w, r, domain.ErrBadRequest)
+		renderError(w, r, domain.ErrInvalidImput)
 		return
 	}
 
@@ -55,8 +61,7 @@ func (h *CategoryHandler) Create(w http.ResponseWriter, r *http.Request) {
 		renderError(w, r, err)
 		return
 	}
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]int{"id": id})
+	renderJSON(w, http.StatusCreated, map[string]int{"id": id})
 }
 
 func (h *CategoryHandler) Update(w http.ResponseWriter, r *http.Request) {
@@ -69,7 +74,7 @@ func (h *CategoryHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	var category domain.Category
 	if err := json.NewDecoder(r.Body).Decode(&category); err != nil {
-		renderError(w, r, domain.ErrBadRequest)
+		renderError(w, r, domain.ErrInvalidImput)
 		return
 	}
 
