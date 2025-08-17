@@ -2,8 +2,12 @@ package postgres
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"log/slog"
 
 	"github.com/Lovodia/Product/internal/domain"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -18,7 +22,8 @@ func NewProductRepo(db *pgxpool.Pool) *ProductRepo {
 func (r *ProductRepo) GetAll() ([]domain.Product, error) {
 	rows, err := r.db.Query(context.Background(), "SELECT id, name, price, category_id, created_at FROM products")
 	if err != nil {
-		return nil, err
+		slog.Error("query product failed", slog.Any("err", err))
+		return nil, fmt.Errorf("product repo GetAll: %w", err)
 	}
 	defer rows.Close()
 
@@ -26,10 +31,12 @@ func (r *ProductRepo) GetAll() ([]domain.Product, error) {
 	for rows.Next() {
 		var p domain.Product
 		if err := rows.Scan(&p.ID, &p.Name, &p.Price, &p.CategoryID, &p.CreatedAt); err != nil {
-			return nil, err
+			slog.Error("scan product failed", slog.Any("err", err))
+			return nil, fmt.Errorf("product repo Scan: %w", err)
 		}
 		products = append(products, p)
 	}
+	slog.Info("product fetched", slog.Int("count", len(products)))
 	return products, nil
 }
 
@@ -40,8 +47,14 @@ func (r *ProductRepo) GetByID(id int) (domain.Product, error) {
 		&p.ID, &p.Name, &p.Price, &p.CategoryID, &p.CreatedAt)
 
 	if err != nil {
-		return domain.Product{}, err
+		if errors.Is(err, pgx.ErrNoRows) {
+			slog.Warn("product not found", slog.Int("id", id))
+			return domain.Product{}, domain.ErrNotFound
+		}
+		slog.Error("query product failed", slog.Any("err", err), slog.Int("id", id))
+		return domain.Product{}, fmt.Errorf("product repo GetByID: %w", err)
 	}
+	slog.Info("product fetched", slog.Int("id", id))
 	return p, nil
 }
 
@@ -53,8 +66,10 @@ func (r *ProductRepo) Create(p domain.Product) (int, error) {
 		p.Name, p.Price, p.CategoryID).Scan(&p.ID, &p.CreatedAt)
 
 	if err != nil {
-		return 0, err
+		slog.Error("failed to create product", slog.Any("err", err))
+		return 0, fmt.Errorf("product repo Create: %w", err)
 	}
+	slog.Info("product created", slog.Int("id", id), slog.String("name", p.Name))
 	return id, nil
 }
 
@@ -65,15 +80,28 @@ func (r *ProductRepo) Update(id int, p domain.Product) (bool, error) {
 		p.Name, p.Price, p.CategoryID, id,
 	)
 	if err != nil {
-		return false, err
+		slog.Error("failed to update product", slog.Any("err", err))
+		return false, fmt.Errorf("update product id=%d failed: %w", id, err)
 	}
-	return cmdTag.RowsAffected() > 0, nil
+
+	if cmdTag.RowsAffected() == 0 {
+		slog.Warn("product not found to update", slog.Int("id", id))
+		return false, domain.ErrNotFound
+	}
+	slog.Info("product updated", slog.Int("id", id))
+	return true, nil
 }
 
 func (r *ProductRepo) Delete(id int) (bool, error) {
 	cmdTag, err := r.db.Exec(context.Background(), "DELETE FROM products WHERE id =$1", id)
 	if err != nil {
-		return false, err
+		slog.Error("failed to delete product", slog.Any("err", err))
+		return false, fmt.Errorf("delete product id=%d failed: %w", id, err)
 	}
-	return cmdTag.RowsAffected() > 0, nil
+	if cmdTag.RowsAffected() == 0 {
+		slog.Warn("product not found to delete", slog.Int("id", id))
+		return false, domain.ErrNotFound
+	}
+	slog.Info("product deleted", slog.Int("id", id))
+	return true, nil
 }

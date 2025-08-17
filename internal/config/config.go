@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/spf13/viper"
@@ -39,6 +40,12 @@ func Load() (*Config, error) {
 	var cfg Config
 	if err := viper.Unmarshal(&cfg); err != nil {
 		return nil, err
+	}
+	if cfg.DBHost == "" || cfg.DBUser == "" || cfg.DBPassword == "" || cfg.DBName == "" {
+		return nil, fmt.Errorf("missing database configuration fields")
+	}
+	if cfg.Server.Port == "" {
+		return nil, fmt.Errorf("missing server port")
 	}
 	return &cfg, nil
 }

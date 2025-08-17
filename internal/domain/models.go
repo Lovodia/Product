@@ -14,3 +14,7 @@ type Product struct {
 	CategoryID int       `json:"category_id"`
 	CreatedAt  time.Time `json:"created_at"`
 }
+
+type ErrorRespons struct {
+	Error string `json:"error"`
+}

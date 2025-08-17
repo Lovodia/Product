@@ -21,7 +21,7 @@ func NewCategoryHandler(uc *usecase.CategoryUseCase) *CategoryHandler {
 func (h *CategoryHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	categories, err := h.UC.GetAll()
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		renderError(w, r, err)
 		return
 	}
 	json.NewEncoder(w).Encode(categories)
@@ -31,13 +31,13 @@ func (h *CategoryHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	idStr := mux.Vars(r)["id"]
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		http.Error(w, "Invalid ID", http.StatusBadRequest)
+		renderError(w, r, domain.ErrBadRequest)
 		return
 	}
 
 	category, err := h.UC.GetByID(id)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
+		renderError(w, r, err)
 		return
 	}
 	json.NewEncoder(w).Encode(category)
@@ -46,13 +46,13 @@ func (h *CategoryHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 func (h *CategoryHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var category domain.Category
 	if err := json.NewDecoder(r.Body).Decode(&category); err != nil {
-		http.Error(w, "Invalid imput", http.StatusBadRequest)
+		renderError(w, r, domain.ErrBadRequest)
 		return
 	}
 
 	id, err := h.UC.Create(category)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		renderError(w, r, err)
 		return
 	}
 	w.WriteHeader(http.StatusCreated)
@@ -63,13 +63,13 @@ func (h *CategoryHandler) Update(w http.ResponseWriter, r *http.Request) {
 	idStr := mux.Vars(r)["id"]
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		http.Error(w, "invalid id", http.StatusBadRequest)
+		renderError(w, r, domain.ErrBadRequest)
 		return
 	}
 
 	var category domain.Category
 	if err := json.NewDecoder(r.Body).Decode(&category); err != nil {
-		http.Error(w, "Invalid input", http.StatusBadRequest)
+		renderError(w, r, domain.ErrBadRequest)
 		return
 	}
 
@@ -77,11 +77,11 @@ func (h *CategoryHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	updated, err := h.UC.Update(category)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		renderError(w, r, err)
 		return
 	}
 	if !updated {
-		http.Error(w, "Category not found", http.StatusNotFound)
+		renderError(w, r, domain.ErrNotFound)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -91,17 +91,17 @@ func (h *CategoryHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	idStr := mux.Vars(r)["id"]
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		http.Error(w, "Invalid ID", http.StatusBadRequest)
+		renderError(w, r, domain.ErrBadRequest)
 		return
 	}
 
 	deleted, err := h.UC.Delete(id)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		renderError(w, r, err)
 		return
 	}
 	if !deleted {
-		http.Error(w, "Category not found", http.StatusNotFound)
+		renderError(w, r, domain.ErrNotFound)
 		return
 	}
 

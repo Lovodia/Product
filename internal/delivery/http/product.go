@@ -21,7 +21,7 @@ func NewProductHandler(uc *usecase.ProductUseCase) *ProductHandler {
 func (h *ProductHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	products, err := h.UC.GetAll()
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		renderError(w, r, err)
 		return
 	}
 	json.NewEncoder(w).Encode(products)
@@ -31,13 +31,13 @@ func (h *ProductHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	idStr := mux.Vars(r)["id"]
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		http.Error(w, "Invalid ID", http.StatusBadRequest)
+		renderError(w, r, domain.ErrBadRequest)
 		return
 	}
 
 	product, err := h.UC.GetByID(id)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
+		renderError(w, r, err)
 		return
 	}
 	json.NewEncoder(w).Encode(product)
@@ -46,13 +46,13 @@ func (h *ProductHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 func (h *ProductHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var product domain.Product
 	if err := json.NewDecoder(r.Body).Decode(&product); err != nil {
-		http.Error(w, "Invalid imput", http.StatusBadRequest)
+		renderError(w, r, domain.ErrBadRequest)
 		return
 	}
 
 	id, err := h.UC.Create(product)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		renderError(w, r, err)
 		return
 	}
 	w.WriteHeader(http.StatusCreated)
@@ -63,23 +63,23 @@ func (h *ProductHandler) Update(w http.ResponseWriter, r *http.Request) {
 	idStr := mux.Vars(r)["id"]
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		http.Error(w, "Invalid ID", http.StatusBadRequest)
+		renderError(w, r, domain.ErrBadRequest)
 		return
 	}
 
 	var product domain.Product
 	if err := json.NewDecoder(r.Body).Decode(&product); err != nil {
-		http.Error(w, "Invalid imupt", http.StatusBadRequest)
+		renderError(w, r, domain.ErrBadRequest)
 		return
 	}
 
 	updated, err := h.UC.Update(id, product)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		renderError(w, r, err)
 		return
 	}
 	if !updated {
-		http.Error(w, "Product not found", http.StatusNotFound)
+		renderError(w, r, domain.ErrNotFound)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -89,17 +89,17 @@ func (h *ProductHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	idStr := mux.Vars(r)["id"]
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		http.Error(w, "invalid ID", http.StatusBadRequest)
+		renderError(w, r, domain.ErrBadRequest)
 		return
 	}
 
 	deleted, err := h.UC.Delete(id)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		renderError(w, r, err)
 		return
 	}
 	if !deleted {
-		http.Error(w, "Product not found", http.StatusNotFound)
+		renderError(w, r, domain.ErrNotFound)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
