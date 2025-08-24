@@ -1,26 +1,24 @@
 package db
 
 import (
-	"database/sql"
 	"fmt"
 
-	"github.com/Lovodia/Product/internal/config"
-	_ "github.com/lib/pq"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
 )
 
-func RunMigrations(cfg *config.Config) error {
-	dsn := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s",
-		cfg.DBUser, cfg.DBPassword, cfg.DBHost, cfg.DBPort, cfg.DBName, cfg.SSLMode)
+func RunMigrations(pool *pgxpool.Pool, migrationsPatch string) error {
 
-	db, err := sql.Open("postgres", dsn)
-	if err != nil {
-		return err
+	if err := goose.SetDialect("postgres"); err != nil {
+		return fmt.Errorf("failed to set goose dialect: %w", err)
 	}
-	defer db.Close()
 
-	if err := goose.Up(db, "./migrations"); err != nil {
-		return err
+	sqlDB := stdlib.OpenDBFromPool(pool)
+	defer sqlDB.Close()
+
+	if err := goose.Up(sqlDB, migrationsPatch); err != nil {
+		return fmt.Errorf("failed to run migrations: %w", err)
 	}
 	return nil
 }

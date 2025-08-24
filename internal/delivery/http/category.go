@@ -17,98 +17,91 @@ type CategoryHandler struct {
 func NewCategoryHandler(r *mux.Router, uc *usecase.CategoryUseCase) {
 	handler := &CategoryHandler{UC: uc}
 
-	r.HandleFunc("/categories", handler.GetAll).Methods(http.MethodGet)
-	r.HandleFunc("/categories/{id}", handler.GetByID).Methods(http.MethodGet)
-	r.HandleFunc("/categories", handler.Create).Methods(http.MethodPost)
-	r.HandleFunc("/categories/{id}", handler.Update).Methods(http.MethodPut)
-	r.HandleFunc("/categories/{id}", handler.Delete).Methods(http.MethodDelete)
+	r.HandleFunc("/categories", errorHandler(handler.GetAll)).Methods(http.MethodGet)
+	r.HandleFunc("/categories/{id}", errorHandler(handler.GetByID)).Methods(http.MethodGet)
+	r.HandleFunc("/categories", errorHandler(handler.Create)).Methods(http.MethodPost)
+	r.HandleFunc("/categories/{id}", errorHandler(handler.Update)).Methods(http.MethodPut)
+	r.HandleFunc("/categories/{id}", errorHandler(handler.Delete)).Methods(http.MethodDelete)
 }
 
-func (h *CategoryHandler) GetAll(w http.ResponseWriter, r *http.Request) {
-	categories, err := h.UC.GetAll()
+func (h *CategoryHandler) GetAll(w http.ResponseWriter, r *http.Request) error {
+	categories, err := h.UC.GetAll(r.Context())
 	if err != nil {
-		renderError(w, r, err)
-		return
+		return err
 	}
 	renderJSON(w, http.StatusOK, categories)
+	return nil
 }
 
-func (h *CategoryHandler) GetByID(w http.ResponseWriter, r *http.Request) {
+func (h *CategoryHandler) GetByID(w http.ResponseWriter, r *http.Request) error {
 	idStr := mux.Vars(r)["id"]
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		renderError(w, r, domain.ErrBadRequest)
-		return
+		return domain.ErrBadRequest
 	}
 
-	category, err := h.UC.GetByID(id)
+	category, err := h.UC.GetByID(r.Context(), id)
 	if err != nil {
-		renderError(w, r, err)
-		return
+		return err
 	}
 	renderJSON(w, http.StatusOK, category)
+	return nil
 }
 
-func (h *CategoryHandler) Create(w http.ResponseWriter, r *http.Request) {
+func (h *CategoryHandler) Create(w http.ResponseWriter, r *http.Request) error {
 	var category domain.Category
 	if err := json.NewDecoder(r.Body).Decode(&category); err != nil {
-		renderError(w, r, domain.ErrInvalidImput)
-		return
+		return domain.ErrInvalidInput
 	}
 
-	id, err := h.UC.Create(category)
+	id, err := h.UC.Create(r.Context(), category)
 	if err != nil {
-		renderError(w, r, err)
-		return
+		return err
 	}
 	renderJSON(w, http.StatusCreated, map[string]int{"id": id})
+	return nil
 }
 
-func (h *CategoryHandler) Update(w http.ResponseWriter, r *http.Request) {
+func (h *CategoryHandler) Update(w http.ResponseWriter, r *http.Request) error {
 	idStr := mux.Vars(r)["id"]
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		renderError(w, r, domain.ErrBadRequest)
-		return
+		return domain.ErrBadRequest
 	}
 
 	var category domain.Category
 	if err := json.NewDecoder(r.Body).Decode(&category); err != nil {
-		renderError(w, r, domain.ErrInvalidImput)
-		return
+		return domain.ErrInvalidInput
 	}
 
 	category.ID = id
 
-	updated, err := h.UC.Update(category)
+	updated, err := h.UC.Update(r.Context(), category)
 	if err != nil {
-		renderError(w, r, err)
-		return
+		return err
 	}
 	if !updated {
-		renderError(w, r, domain.ErrNotFound)
-		return
+		return domain.ErrNotFound
 	}
 	w.WriteHeader(http.StatusNoContent)
+	return nil
 }
 
-func (h *CategoryHandler) Delete(w http.ResponseWriter, r *http.Request) {
+func (h *CategoryHandler) Delete(w http.ResponseWriter, r *http.Request) error {
 	idStr := mux.Vars(r)["id"]
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		renderError(w, r, domain.ErrBadRequest)
-		return
+		return domain.ErrBadRequest
 	}
 
-	deleted, err := h.UC.Delete(id)
+	deleted, err := h.UC.Delete(r.Context(), id)
 	if err != nil {
-		renderError(w, r, err)
-		return
+		return err
 	}
 	if !deleted {
-		renderError(w, r, domain.ErrNotFound)
-		return
+		return domain.ErrNotFound
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+	return nil
 }

@@ -8,24 +8,31 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/Lovodia/Product/internal/config"
 	"github.com/Lovodia/Product/internal/db"
 	httpDelivery "github.com/Lovodia/Product/internal/delivery/http"
+	"github.com/Lovodia/Product/internal/domain"
 	"github.com/Lovodia/Product/internal/infrastructure"
 	"github.com/Lovodia/Product/internal/usecase"
 	"github.com/gorilla/mux"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func main() {
+	os.Exit(run())
+}
+
+func run() int {
 	migrate := flag.Bool("migrate", false, "Run database migrations and exit")
 	flag.Parse()
 
 	cfg, err := config.Load()
 	if err != nil {
-		slog.Error("Failed to Load config:", slog.Any("err", err))
-		os.Exit(1)
+		slog.Error("Failed to Load config:", domain.LogErr(err))
+		return 1
 	}
 
 	var level slog.Level
@@ -38,20 +45,29 @@ func main() {
 	slog.SetDefault(logger)
 	slog.Info("Configuration loaded", slog.Any("config", cfg))
 
+	ctx := context.Background()
+
 	if *migrate {
 		slog.Info("Running migrations...")
-		if err := db.RunMigrations(cfg); err != nil {
-			slog.Error("migrations failed", slog.Any("error", err))
-			os.Exit(1)
+		pool, err := pgxpool.New(ctx, cfg.DSN())
+		if err != nil {
+			slog.Error("failed to connect for migrations", domain.LogErr(err))
+			return 1
+		}
+		defer pool.Close()
+
+		if err := db.RunMigrations(pool, cfg.MigrationsPath); err != nil {
+			slog.Error("migrations failed", domain.LogErr(err))
+			return 1
 		}
 		slog.Info("Migrations applied successfully")
-		return
+		return 0
 	}
 
 	database, err := db.New(cfg)
 	if err != nil {
-		slog.Error("failed to connect to BD", slog.Any("error", err))
-		os.Exit(1)
+		slog.Error("failed to connect to BD", domain.LogErr(err))
+		return 1
 	}
 	defer database.Close()
 	slog.Info("Database connection established")
@@ -68,27 +84,32 @@ func main() {
 		Addr:    ":" + cfg.Server.Port,
 		Handler: r,
 	}
-
+	errChan := make(chan error, 1)
 	go func() {
 		slog.Info("Server starting", slog.String("addr", srv.Addr))
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			slog.Error("server failed", slog.Any("error", err))
-			os.Exit(1)
+			errChan <- err
 		}
 	}()
 
 	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, os.Interrupt)
-	<-quit
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 
-	slog.Warn("Sutting down server...")
+	select {
+	case sig := <-quit:
+		slog.Warn("Shutting down server...", slog.String("signal", sig.String()))
+	case err := <-errChan:
+		slog.Error("server failed", domain.LogErr(err))
+		return 1
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	if err := srv.Shutdown(ctx); err != nil {
-		slog.Error("server forced to shutdown", slog.Any("error", err))
-		os.Exit(1)
+		slog.Error("server forced to shutdown", domain.LogErr(err))
+		return 1
 	}
 	slog.Info("Server exited gracefuly")
+	return 0
 }

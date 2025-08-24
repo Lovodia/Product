@@ -15,14 +15,14 @@ func renderJSON(w http.ResponseWriter, status int, data interface{}) {
 	_ = json.NewEncoder(w).Encode(data)
 }
 
-func renderError(w http.ResponseWriter, r *http.Request, err error) {
+func renderError(w http.ResponseWriter, r *http.Request, err error) error {
 	status := http.StatusInternalServerError
 
 	switch {
 	case errors.Is(err, domain.ErrNotFound):
 		status = http.StatusNotFound
 	case errors.Is(err, domain.ErrBadRequest),
-		errors.Is(err, domain.ErrInvalidImput):
+		errors.Is(err, domain.ErrInvalidInput):
 		status = http.StatusBadRequest
 	case errors.Is(err, domain.ErrConflict):
 		status = http.StatusConflict
@@ -40,6 +40,7 @@ func renderError(w http.ResponseWriter, r *http.Request, err error) {
 		slog.String("path", r.URL.Path),
 		slog.String("remote", r.RemoteAddr),
 		slog.Int("status", status),
-		slog.Any("error", err),
+		domain.LogErr(err),
 	)
+	return err
 }

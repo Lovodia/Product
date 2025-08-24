@@ -1,11 +1,17 @@
 package domain
 
-import "errors"
+import (
+	"errors"
+	"log/slog"
+)
 
 var (
 	ErrBadRequest   = errors.New("bad request")
 	ErrNotFound     = errors.New("resource not found")
-	ErrInvalidImput = errors.New("invalid imput")
+	ErrInvalidInput = errors.New("invalid input")
 	ErrConflict     = errors.New("conflict")
-	ErrInternal     = errors.New("internal error")
 )
+
+func LogErr(err error) slog.Attr {
+	return slog.Any("error", err)
+}

@@ -5,7 +5,6 @@ go 1.24.1
 require (
 	github.com/gorilla/mux v1.8.1
 	github.com/jackc/pgx/v5 v5.7.5
-	github.com/lib/pq v1.10.9
 	github.com/pressly/goose/v3 v3.24.3
 	github.com/spf13/viper v1.20.1
 )

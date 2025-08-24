@@ -9,3 +9,5 @@ server:
   port: "8080"
 
 log_level: "debug"
+
+migrations_path: "./migrations"
