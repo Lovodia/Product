@@ -45,7 +45,6 @@ func (r *ProductRepo) GetByID(ctx context.Context, id int) (domain.Product, erro
 	err := r.db.QueryRow(ctx,
 		"SELECT id, name, price, category_id, created_at FROM products WHERE id = $1", id).Scan(
 		&p.ID, &p.Name, &p.Price, &p.CategoryID, &p.CreatedAt)
-
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			slog.Warn("product not found", slog.Int("id", id))
@@ -62,8 +61,7 @@ func (r *ProductRepo) Create(ctx context.Context, p domain.Product) (int, error)
 	var id int
 	err := r.db.QueryRow(ctx,
 		"INSERT INTO products(name, price, category_id, created_at) VALUES($1, $2, $3, NOW()) RETURNING id, created_at",
-		p.Name, p.Price, p.CategoryID).Scan(&p.ID, &p.CreatedAt)
-
+		p.Name, p.Price, p.CategoryID).Scan(&id, &p.CreatedAt)
 	if err != nil {
 		slog.Error("failed to create product", domain.LogErr(err))
 		return 0, fmt.Errorf("product repo Create: %w", err)

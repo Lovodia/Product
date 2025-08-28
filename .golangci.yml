@@ -1,0 +1,30 @@
+run:
+  timeout: 3m
+  tests: true
+
+linters:
+  enable:
+    - gofmt
+    - gofumpt
+    - lll
+    - govet
+    - errcheck
+    - staticcheck
+    - unused      
+    - gosimple
+    - typecheck
+    - gofmt
+    - goimports
+    - revive
+    - gocritic
+    - stylecheck
+    - whitespace
+    - misspell
+
+linters-settings:
+  lll:
+    line-length: 140
+
+output:
+  formats:
+    - format: "colored-line-number"

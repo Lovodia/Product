@@ -42,3 +42,8 @@ fmt:
 test:
 	@echo "Starting test..."
 	go test ./...
+
+.PHONY: lint
+lint:
+	@echo "Running linters..."
+	golangci-lint run ./...

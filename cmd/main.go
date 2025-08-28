@@ -13,7 +13,7 @@ import (
 
 	"github.com/Lovodia/Product/internal/config"
 	"github.com/Lovodia/Product/internal/db"
-	httpDelivery "github.com/Lovodia/Product/internal/delivery/http"
+	httpdelivery "github.com/Lovodia/Product/internal/delivery/http"
 	"github.com/Lovodia/Product/internal/domain"
 	"github.com/Lovodia/Product/internal/infrastructure"
 	"github.com/Lovodia/Product/internal/usecase"
@@ -56,6 +56,12 @@ func run() int {
 		}
 		defer pool.Close()
 
+		if err := pool.Ping(ctx); err != nil {
+			slog.Error("database ping failed", domain.LogErr(err))
+			return 1
+		}
+		slog.Info("Database ping successful")
+
 		if err := db.RunMigrations(pool, cfg.MigrationsPath); err != nil {
 			slog.Error("migrations failed", domain.LogErr(err))
 			return 1
@@ -77,8 +83,8 @@ func run() int {
 	categoryUC := usecase.NewCategoryUseCase(infrFactory.CategoryRepo)
 
 	r := mux.NewRouter()
-	httpDelivery.NewProductHandler(r, productUC)
-	httpDelivery.NewCategoryHandler(r, categoryUC)
+	httpdelivery.NewProductHandler(r, productUC)
+	httpdelivery.NewCategoryHandler(r, categoryUC)
 
 	srv := &http.Server{
 		Addr:    ":" + cfg.Server.Port,
@@ -110,6 +116,6 @@ func run() int {
 		slog.Error("server forced to shutdown", domain.LogErr(err))
 		return 1
 	}
-	slog.Info("Server exited gracefuly")
+	slog.Info("Server exited gracefully")
 	return 0
 }

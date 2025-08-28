@@ -1,4 +1,4 @@
-package httpDelivery
+package httpdelivery
 
 import (
 	"encoding/json"
