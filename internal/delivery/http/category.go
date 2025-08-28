@@ -29,13 +29,16 @@ func (h *CategoryHandler) GetAll(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
+
 	renderJSON(w, http.StatusOK, categories)
+
 	return nil
 }
 
 func (h *CategoryHandler) GetByID(w http.ResponseWriter, r *http.Request) error {
 	idStr := mux.Vars(r)["id"]
 	id, err := strconv.Atoi(idStr)
+
 	if err != nil {
 		return domain.ErrBadRequest
 	}
@@ -44,7 +47,9 @@ func (h *CategoryHandler) GetByID(w http.ResponseWriter, r *http.Request) error 
 	if err != nil {
 		return err
 	}
+
 	renderJSON(w, http.StatusOK, category)
+
 	return nil
 }
 
@@ -58,13 +63,16 @@ func (h *CategoryHandler) Create(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
+
 	renderJSON(w, http.StatusCreated, map[string]int{"id": id})
+
 	return nil
 }
 
 func (h *CategoryHandler) Update(w http.ResponseWriter, r *http.Request) error {
 	idStr := mux.Vars(r)["id"]
 	id, err := strconv.Atoi(idStr)
+
 	if err != nil {
 		return domain.ErrBadRequest
 	}
@@ -80,16 +88,20 @@ func (h *CategoryHandler) Update(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
+
 	if !updated {
 		return domain.ErrNotFound
 	}
+
 	w.WriteHeader(http.StatusNoContent)
+
 	return nil
 }
 
 func (h *CategoryHandler) Delete(w http.ResponseWriter, r *http.Request) error {
 	idStr := mux.Vars(r)["id"]
 	id, err := strconv.Atoi(idStr)
+
 	if err != nil {
 		return domain.ErrBadRequest
 	}
@@ -98,10 +110,12 @@ func (h *CategoryHandler) Delete(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
+
 	if !deleted {
 		return domain.ErrNotFound
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+
 	return nil
 }

@@ -3,6 +3,8 @@ package db
 import (
 	"context"
 	"fmt"
+	"net"
+	"strconv"
 
 	"github.com/Lovodia/Product/internal/config"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -15,8 +17,10 @@ type Database struct {
 func New(cfg *config.Config) (*Database, error) {
 	ctx := context.Background()
 
-	dsn := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s",
-		cfg.DBUser, cfg.DBPassword, cfg.DBHost, cfg.DBPort, cfg.DBName, cfg.SSLMode)
+	hostPort := net.JoinHostPort(cfg.DBHost, strconv.Itoa(cfg.DBPort))
+
+	dsn := fmt.Sprintf("postgres://%s:%s@%s/%s?sslmode=%s",
+		cfg.DBUser, cfg.DBPassword, hostPort, cfg.DBName, cfg.SSLMode)
 
 	pool, err := pgxpool.New(ctx, dsn)
 	if err != nil {
@@ -25,6 +29,7 @@ func New(cfg *config.Config) (*Database, error) {
 
 	if err := pool.Ping(ctx); err != nil {
 		pool.Close()
+
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 

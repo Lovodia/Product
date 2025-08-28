@@ -24,5 +24,6 @@ func RunMigrations(pool *pgxpool.Pool, migrationsPatch string) error {
 	if err := goose.Up(sqlDB, migrationsPatch); err != nil {
 		return fmt.Errorf("failed to run migrations: %w", err)
 	}
+
 	return nil
 }

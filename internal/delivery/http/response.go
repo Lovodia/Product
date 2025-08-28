@@ -12,7 +12,10 @@ import (
 func renderJSON(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(data)
+
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		slog.Error("failed to encode JSON", domain.LogErr(err))
+	}
 }
 
 func renderError(w http.ResponseWriter, r *http.Request, err error) error {
@@ -31,9 +34,11 @@ func renderError(w http.ResponseWriter, r *http.Request, err error) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 
-	_ = json.NewEncoder(w).Encode(domain.ErrorResponse{
+	if encodeErr := json.NewEncoder(w).Encode(domain.ErrorResponse{
 		Error: err.Error(),
-	})
+	}); encodeErr != nil {
+		slog.Error("failed to encode error JSON response", domain.LogErr(encodeErr))
+	}
 
 	slog.Error("http error",
 		slog.String("method", r.Method),
@@ -42,5 +47,6 @@ func renderError(w http.ResponseWriter, r *http.Request, err error) error {
 		slog.Int("status", status),
 		domain.LogErr(err),
 	)
+
 	return err
 }

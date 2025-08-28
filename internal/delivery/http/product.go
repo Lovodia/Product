@@ -29,13 +29,16 @@ func (h *ProductHandler) GetAll(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
+
 	renderJSON(w, http.StatusOK, products)
+
 	return nil
 }
 
 func (h *ProductHandler) GetByID(w http.ResponseWriter, r *http.Request) error {
 	idStr := mux.Vars(r)["id"]
 	id, err := strconv.Atoi(idStr)
+
 	if err != nil {
 		return domain.ErrBadRequest
 	}
@@ -44,7 +47,9 @@ func (h *ProductHandler) GetByID(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
+
 	renderJSON(w, http.StatusOK, product)
+
 	return nil
 }
 
@@ -58,13 +63,16 @@ func (h *ProductHandler) Create(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
+
 	renderJSON(w, http.StatusCreated, map[string]int{"id": id})
+
 	return nil
 }
 
 func (h *ProductHandler) Update(w http.ResponseWriter, r *http.Request) error {
 	idStr := mux.Vars(r)["id"]
 	id, err := strconv.Atoi(idStr)
+
 	if err != nil {
 		return domain.ErrBadRequest
 	}
@@ -78,16 +86,20 @@ func (h *ProductHandler) Update(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
+
 	if !updated {
 		return domain.ErrNotFound
 	}
+
 	w.WriteHeader(http.StatusNoContent)
+
 	return nil
 }
 
 func (h *ProductHandler) Delete(w http.ResponseWriter, r *http.Request) error {
 	idStr := mux.Vars(r)["id"]
 	id, err := strconv.Atoi(idStr)
+
 	if err != nil {
 		return domain.ErrBadRequest
 	}
@@ -96,9 +108,12 @@ func (h *ProductHandler) Delete(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
+
 	if !deleted {
 		return domain.ErrNotFound
 	}
+
 	w.WriteHeader(http.StatusNoContent)
+
 	return nil
 }

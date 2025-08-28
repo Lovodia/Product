@@ -2,6 +2,8 @@ package config
 
 import (
 	"fmt"
+	"net"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/viper"
@@ -26,8 +28,10 @@ type Config struct {
 }
 
 func (c *Config) DSN() string {
-	return fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s",
-		c.DBUser, c.DBPassword, c.DBHost, c.DBPort, c.DBName, c.SSLMode)
+	hostPort := net.JoinHostPort(c.DBHost, strconv.Itoa(c.DBPort))
+
+	return fmt.Sprintf("postgres://%s:%s@%s/%s?sslmode=%s",
+		c.DBUser, c.DBPassword, hostPort, c.DBName, c.SSLMode)
 }
 
 func Load() (*Config, error) {
@@ -47,8 +51,10 @@ func Load() (*Config, error) {
 	if err := viper.Unmarshal(&cfg); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
+
 	if cfg.MigrationsPath == "" {
 		cfg.MigrationsPath = "./migrations"
 	}
+
 	return &cfg, nil
 }
