@@ -40,8 +40,13 @@ fmt:
 
 .PHONY: test
 test:
-	@echo "Starting test..."
-	go test ./...
+	@echo "Running unit tests with verbose output..."
+	go test ./... -v
+
+.PHONY: test-cover
+test-cover:
+	@echo "Running tests with coverage report..."
+	go test -cover ./internal/infrastructure/postgres
 
 .PHONY: lint
 lint:

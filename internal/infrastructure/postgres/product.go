@@ -9,14 +9,13 @@ import (
 	"github.com/Lovodia/Product/internal/domain"
 	"github.com/Lovodia/Product/internal/logger"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type ProductRepo struct {
-	db *pgxpool.Pool
+	db PgxIface
 }
 
-func NewProductRepo(db *pgxpool.Pool) *ProductRepo {
+func NewProductRepo(db PgxIface) *ProductRepo {
 	return &ProductRepo{db: db}
 }
 
