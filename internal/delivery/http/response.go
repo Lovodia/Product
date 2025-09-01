@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/Lovodia/Product/internal/domain"
+	"github.com/Lovodia/Product/internal/logger"
 )
 
 func renderJSON(w http.ResponseWriter, status int, data interface{}) {
@@ -14,7 +15,7 @@ func renderJSON(w http.ResponseWriter, status int, data interface{}) {
 	w.WriteHeader(status)
 
 	if err := json.NewEncoder(w).Encode(data); err != nil {
-		slog.Error("failed to encode JSON", domain.LogErr(err))
+		slog.Error("failed to encode JSON", logger.LogErr(err))
 	}
 }
 
@@ -37,7 +38,7 @@ func renderError(w http.ResponseWriter, r *http.Request, err error) error {
 	if encodeErr := json.NewEncoder(w).Encode(domain.ErrorResponse{
 		Error: err.Error(),
 	}); encodeErr != nil {
-		slog.Error("failed to encode error JSON response", domain.LogErr(encodeErr))
+		slog.Error("failed to encode error JSON response", logger.LogErr(encodeErr))
 	}
 
 	slog.Error("http error",
@@ -45,7 +46,7 @@ func renderError(w http.ResponseWriter, r *http.Request, err error) error {
 		slog.String("path", r.URL.Path),
 		slog.String("remote", r.RemoteAddr),
 		slog.Int("status", status),
-		domain.LogErr(err),
+		logger.LogErr(err),
 	)
 
 	return err

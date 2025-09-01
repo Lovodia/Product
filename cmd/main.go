@@ -8,15 +8,14 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
 	"github.com/Lovodia/Product/internal/config"
 	"github.com/Lovodia/Product/internal/db"
 	httpdelivery "github.com/Lovodia/Product/internal/delivery/http"
-	"github.com/Lovodia/Product/internal/domain"
 	"github.com/Lovodia/Product/internal/infrastructure"
+	"github.com/Lovodia/Product/internal/logger"
 	"github.com/Lovodia/Product/internal/usecase"
 	"github.com/gorilla/mux"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -27,74 +26,84 @@ func main() {
 }
 
 func run() int {
+	cfg, err := LoadConfig()
+	if err != nil {
+		return 1
+	}
+
+	logger.SetupLogger(cfg)
+
+	if isMigratioMode() {
+		return runMigrations(cfg)
+	}
+
+	dbConn, err := db.New(cfg)
+	if err != nil {
+		slog.Error("failed to connect to BD", logger.LogErr(err))
+
+		return 1
+	}
+
+	defer dbConn.Close()
+	slog.Info("Database connection established")
+
+	return startServer(cfg, dbConn)
+}
+
+func LoadConfig() (*config.Config, error) {
+	cfg, err := config.Load()
+	if err != nil {
+		slog.Error("failed to load config:", logger.LogErr(err))
+
+		return nil, err
+	}
+
+	return cfg, nil
+}
+
+func isMigratioMode() bool {
+	migrate := flag.Bool("migrate", false, "Run database migrations and exit")
+	flag.Parse()
+
+	return *migrate
+}
+
+func runMigrations(cfg *config.Config) int {
+	ctx := context.Background()
+	pool, err := pgxpool.New(ctx, cfg.DSN())
+
+	if err != nil {
+		slog.Error("failed to connect for migrations", logger.LogErr(err))
+
+		return 1
+	}
+
+	defer pool.Close()
+
+	if err := pool.Ping(ctx); err != nil {
+		slog.Error("database ping failed", logger.LogErr(err))
+
+		return 1
+	}
+
+	slog.Info("Database ping successful")
+
+	if err := db.RunMigrations(pool, cfg.MigrationsPath); err != nil {
+		slog.Error("migrations failed", logger.LogErr(err))
+
+		return 1
+	}
+
+	slog.Info("Migrations applied successfully")
+
+	return 0
+}
+
+func startServer(cfg *config.Config, database *db.Database) int {
 	const (
 		shutdownTimeout   = 10 * time.Second
 		readHeaderTimeout = 5 * time.Second
 	)
-
-	migrate := flag.Bool("migrate", false, "Run database migrations and exit")
-	flag.Parse()
-
-	cfg, err := config.Load()
-	if err != nil {
-		slog.Error("Failed to Load config:", domain.LogErr(err))
-
-		return 1
-	}
-
-	var level slog.Level
-	if err := level.UnmarshalText([]byte(strings.ToLower(cfg.LogLevel))); err != nil {
-		slog.Warn("invalid log level, falling back to info", slog.String("provited", cfg.LogLevel))
-		level = slog.LevelInfo
-	}
-
-	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: level}))
-	slog.SetDefault(logger)
-	slog.Info("Configuration loaded", slog.Any("config", cfg))
-
-	ctx := context.Background()
-
-	if *migrate {
-		slog.Info("Running migrations...")
-
-		pool, err := pgxpool.New(ctx, cfg.DSN())
-
-		if err != nil {
-			slog.Error("failed to connect for migrations", domain.LogErr(err))
-
-			return 1
-		}
-
-		defer pool.Close()
-
-		if err := pool.Ping(ctx); err != nil {
-			slog.Error("database ping failed", domain.LogErr(err))
-
-			return 1
-		}
-
-		slog.Info("Database ping successful")
-
-		if err := db.RunMigrations(pool, cfg.MigrationsPath); err != nil {
-			slog.Error("migrations failed", domain.LogErr(err))
-
-			return 1
-		}
-
-		slog.Info("Migrations applied successfully")
-
-		return 0
-	}
-
-	database, err := db.New(cfg)
-	if err != nil {
-		slog.Error("failed to connect to BD", domain.LogErr(err))
-
-		return 1
-	}
-
-	defer database.Close()
-	slog.Info("Database connection established")
 
 	infrFactory := infrastructure.NewRepositoryFactory(database.Pool())
 	productUC := usecase.NewProductUseCase(infrFactory.ProductRepo)
@@ -126,7 +135,7 @@ func run() int {
 	case sig := <-quit:
 		slog.Warn("Shutting down server...", slog.String("signal", sig.String()))
 	case err := <-errChan:
-		slog.Error("server failed", domain.LogErr(err))
+		slog.Error("server failed", logger.LogErr(err))
 
 		return 1
 	}
@@ -135,7 +144,7 @@ func run() int {
 	defer cancel()
 
 	if err := srv.Shutdown(ctx); err != nil {
-		slog.Error("server forced to shutdown", domain.LogErr(err))
+		slog.Error("server forced to shutdown", logger.LogErr(err))
 
 		return 1
 	}

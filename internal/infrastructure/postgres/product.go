@@ -7,6 +7,7 @@ import (
 	"log/slog"
 
 	"github.com/Lovodia/Product/internal/domain"
+	"github.com/Lovodia/Product/internal/logger"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -22,7 +23,7 @@ func NewProductRepo(db *pgxpool.Pool) *ProductRepo {
 func (r *ProductRepo) GetAll(ctx context.Context) ([]domain.Product, error) {
 	rows, err := r.db.Query(ctx, "SELECT id, name, price, category_id, created_at FROM products")
 	if err != nil {
-		slog.Error("query product failed", domain.LogErr(err))
+		slog.Error("query product failed", logger.LogErr(err))
 
 		return nil, fmt.Errorf("product repo GetAll: %w", err)
 	}
@@ -33,7 +34,7 @@ func (r *ProductRepo) GetAll(ctx context.Context) ([]domain.Product, error) {
 	for rows.Next() {
 		var prod domain.Product
 		if err := rows.Scan(&prod.ID, &prod.Name, &prod.Price, &prod.CategoryID, &prod.CreatedAt); err != nil {
-			slog.Error("scan product failed", domain.LogErr(err))
+			slog.Error("scan product failed", logger.LogErr(err))
 
 			return nil, fmt.Errorf("product repo Scan: %w", err)
 		}
@@ -59,7 +60,7 @@ func (r *ProductRepo) GetByID(ctx context.Context, id int) (domain.Product, erro
 			return domain.Product{}, domain.ErrNotFound
 		}
 
-		slog.Error("query product failed", domain.LogErr(err), slog.Int("id", id))
+		slog.Error("query product failed", logger.LogErr(err), slog.Int("id", id))
 
 		return domain.Product{}, fmt.Errorf("product repo GetByID: %w", err)
 	}
@@ -76,7 +77,7 @@ func (r *ProductRepo) Create(ctx context.Context, prod domain.Product) (int, err
 		prod.Name, prod.Price, prod.CategoryID).Scan(&id, &prod.CreatedAt)
 
 	if err != nil {
-		slog.Error("failed to create product", domain.LogErr(err))
+		slog.Error("failed to create product", logger.LogErr(err))
 
 		return 0, fmt.Errorf("product repo Create: %w", err)
 	}
@@ -92,7 +93,7 @@ func (r *ProductRepo) Update(ctx context.Context, id int, prod domain.Product) (
 		prod.Name, prod.Price, prod.CategoryID, id,
 	)
 	if err != nil {
-		slog.Error("failed to update product", domain.LogErr(err))
+		slog.Error("failed to update product", logger.LogErr(err))
 
 		return false, fmt.Errorf("update product id=%d failed: %w", id, err)
 	}
@@ -111,7 +112,7 @@ func (r *ProductRepo) Update(ctx context.Context, id int, prod domain.Product) (
 func (r *ProductRepo) Delete(ctx context.Context, id int) (bool, error) {
 	cmdTag, err := r.db.Exec(ctx, "DELETE FROM products WHERE id =$1", id)
 	if err != nil {
-		slog.Error("failed to delete product", domain.LogErr(err))
+		slog.Error("failed to delete product", logger.LogErr(err))
 
 		return false, fmt.Errorf("delete product id=%d failed: %w", id, err)
 	}

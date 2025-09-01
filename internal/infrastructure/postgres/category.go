@@ -7,6 +7,7 @@ import (
 	"log/slog"
 
 	"github.com/Lovodia/Product/internal/domain"
+	"github.com/Lovodia/Product/internal/logger"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -22,7 +23,7 @@ func NewCategoryRepo(db *pgxpool.Pool) *CategoryRepo {
 func (r *CategoryRepo) GetAll(ctx context.Context) ([]domain.Category, error) {
 	rows, err := r.db.Query(ctx, "SELECT id, name FROM categories")
 	if err != nil {
-		slog.Error("query categories failed", domain.LogErr(err))
+		slog.Error("query categories failed", logger.LogErr(err))
 
 		return nil, fmt.Errorf("query categories failed: %w", err)
 	}
@@ -33,7 +34,7 @@ func (r *CategoryRepo) GetAll(ctx context.Context) ([]domain.Category, error) {
 	for rows.Next() {
 		var cat domain.Category
 		if err := rows.Scan(&cat.ID, &cat.Name); err != nil {
-			slog.Error("scan category failed", domain.LogErr(err))
+			slog.Error("scan category failed", logger.LogErr(err))
 
 			return nil, fmt.Errorf("scan category failed: %w", err)
 		}
@@ -58,7 +59,7 @@ func (r *CategoryRepo) GetByID(ctx context.Context, id int) (domain.Category, er
 			return domain.Category{}, domain.ErrNotFound
 		}
 
-		slog.Error("query category failed", domain.LogErr(err), slog.Int("id", id))
+		slog.Error("query category failed", logger.LogErr(err), slog.Int("id", id))
 
 		return domain.Category{}, fmt.Errorf("category repo GetByID: %w", err)
 	}
@@ -74,7 +75,7 @@ func (r *CategoryRepo) Create(ctx context.Context, category domain.Category) (in
 		"INSERT INTO categories(name) VALUES($1) RETURNING id", category.Name).Scan(&id)
 
 	if err != nil {
-		slog.Error("failed to create category", domain.LogErr(err))
+		slog.Error("failed to create category", logger.LogErr(err))
 
 		return 0, fmt.Errorf("category repo Create: %w", err)
 	}
@@ -88,7 +89,7 @@ func (r *CategoryRepo) Update(ctx context.Context, category domain.Category) (bo
 	cmdTag, err := r.db.Exec(ctx,
 		"UPDATE categories SET name=$1 WHERE id=$2", category.Name, category.ID)
 	if err != nil {
-		slog.Error("failed to update category", domain.LogErr(err))
+		slog.Error("failed to update category", logger.LogErr(err))
 
 		return false, fmt.Errorf("update category id=%d failed: %w", category.ID, err)
 	}
@@ -107,7 +108,7 @@ func (r *CategoryRepo) Update(ctx context.Context, category domain.Category) (bo
 func (r *CategoryRepo) Delete(ctx context.Context, id int) (bool, error) {
 	cmdTag, err := r.db.Exec(ctx, "DELETE FROM categories WHERE id=$1", id)
 	if err != nil {
-		slog.Error("failed to delete category", domain.LogErr(err))
+		slog.Error("failed to delete category", logger.LogErr(err))
 
 		return false, fmt.Errorf("delete category id=%d failed: %w", id, err)
 	}
