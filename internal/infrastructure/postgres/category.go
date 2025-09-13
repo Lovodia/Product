@@ -9,13 +9,14 @@ import (
 	"github.com/Lovodia/Product/internal/domain"
 	"github.com/Lovodia/Product/internal/logger"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type CategoryRepo struct {
-	db PgxIface
+	db *pgxpool.Pool
 }
 
-func NewCategoryRepo(db PgxIface) *CategoryRepo {
+func NewCategoryRepo(db *pgxpool.Pool) *CategoryRepo {
 	return &CategoryRepo{db: db}
 }
 

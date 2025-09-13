@@ -14,8 +14,8 @@ func LogErr(err error) slog.Attr {
 
 func SetupLogger(cfg *config.Config) {
 	var level slog.Level
-	if err := level.UnmarshalText([]byte(strings.ToLower(cfg.LogLevel))); err != nil {
-		slog.Warn("invaalid log level, falling back to info", slog.String("provided", cfg.LogLevel))
+	if err := level.UnmarshalText([]byte(strings.ToLower(cfg.Logger.Level))); err != nil {
+		slog.Warn("invalid log level, falling back to info", slog.String("provided", cfg.Logger.Level))
 		level = slog.LevelInfo
 	}
 

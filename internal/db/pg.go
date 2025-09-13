@@ -17,10 +17,10 @@ type Database struct {
 func New(cfg *config.Config) (*Database, error) {
 	ctx := context.Background()
 
-	hostPort := net.JoinHostPort(cfg.DBHost, strconv.Itoa(cfg.DBPort))
+	hostPort := net.JoinHostPort(cfg.DB.Host, strconv.Itoa(cfg.DB.Port))
 
 	dsn := fmt.Sprintf("postgres://%s:%s@%s/%s?sslmode=%s",
-		cfg.DBUser, cfg.DBPassword, hostPort, cfg.DBName, cfg.SSLMode)
+		cfg.DB.User, cfg.DB.Password, hostPort, cfg.DB.Name, cfg.DB.SSLMode)
 
 	pool, err := pgxpool.New(ctx, dsn)
 	if err != nil {

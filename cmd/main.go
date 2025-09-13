@@ -70,7 +70,7 @@ func isMigratioMode() bool {
 
 func runMigrations(cfg *config.Config) int {
 	ctx := context.Background()
-	pool, err := pgxpool.New(ctx, cfg.DSN())
+	pool, err := pgxpool.New(ctx, cfg.DB.DSN())
 
 	if err != nil {
 		slog.Error("failed to connect for migrations", logger.LogErr(err))
@@ -88,7 +88,7 @@ func runMigrations(cfg *config.Config) int {
 
 	slog.Info("Database ping successful")
 
-	if err := db.RunMigrations(pool, cfg.MigrationsPath); err != nil {
+	if err := db.RunMigrations(pool, cfg.Migration.Path); err != nil {
 		slog.Error("migrations failed", logger.LogErr(err))
 
 		return 1

@@ -3,6 +3,7 @@ package infrastructure
 import (
 	"github.com/Lovodia/Product/internal/infrastructure/postgres"
 	"github.com/Lovodia/Product/internal/usecase"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type RepositoryFactory struct {
@@ -10,7 +11,7 @@ type RepositoryFactory struct {
 	CategoryRepo usecase.CategoryRepo
 }
 
-func NewRepositoryFactory(db postgres.PgxIface) *RepositoryFactory {
+func NewRepositoryFactory(db *pgxpool.Pool) *RepositoryFactory {
 	return &RepositoryFactory{
 		ProductRepo:  postgres.NewProductRepo(db),
 		CategoryRepo: postgres.NewCategoryRepo(db),
