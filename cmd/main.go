@@ -4,8 +4,7 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/Lovodia/Product/internal/bootstrap"
-	"github.com/Lovodia/Product/internal/logger"
+	"github.com/Lovodia/Product/internal/app"
 )
 
 func main() {
@@ -13,25 +12,17 @@ func main() {
 }
 
 func run() int {
-	cfg, err := bootstrap.LoadConfig()
+	application, err := app.New()
 	if err != nil {
+		slog.Error("failed to initialize application", slog.Any("error", err))
+
 		return 1
 	}
+	defer application.Close()
 
-	logger.SetupLogger(cfg)
-
-	if bootstrap.IsMigrationMode() {
-		return bootstrap.RunMigrations(cfg)
+	if application.IsMigrationMode() {
+		return application.RunMigrations()
 	}
 
-	dbConn, err := bootstrap.InitDatabase(cfg)
-	if err != nil {
-		slog.Error("failed to connect to DB", logger.LogErr(err))
-		return 1
-	}
-	defer dbConn.Close()
-
-	slog.Info("Database connection established")
-
-	return bootstrap.StartServer(cfg, dbConn)
+	return application.StartServer()
 }

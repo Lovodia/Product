@@ -1,7 +1,6 @@
 package postgres_test
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -16,7 +15,7 @@ import (
 
 func setupProductRepo(t *testing.T) (*postgres.ProductRepo, *postgres.CategoryRepo, func()) {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	req := testcontainers.ContainerRequest{
 		Image:        "postgres:15",
@@ -66,6 +65,7 @@ func setupProductRepo(t *testing.T) (*postgres.ProductRepo, *postgres.CategoryRe
 
 	return productRepo, categoryRepo, func() {
 		database.Close()
+
 		_ = container.Terminate(ctx)
 	}
 }
@@ -76,7 +76,7 @@ func TestProductRepo_CRUD(t *testing.T) {
 	productRepo, categoryRepo, cleanup := setupProductRepo(t)
 	defer cleanup()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	catID, err := categoryRepo.Create(ctx, domain.Category{Name: "Tech"})
 	require.NoError(t, err)
@@ -89,15 +89,15 @@ func TestProductRepo_CRUD(t *testing.T) {
 
 	id, err := productRepo.Create(ctx, prod)
 	require.NoError(t, err)
-	require.True(t, id > 0)
+	require.Positive(t, id)
 
-	p, err := productRepo.GetByID(ctx, id)
+	prod, err = productRepo.GetByID(ctx, id) // no :=
 	require.NoError(t, err)
-	require.Equal(t, "Phone", p.Name)
+	require.Equal(t, "Phone", prod.Name)
 
-	p.Name = "Smartphone"
-	p.Price = 899.99
-	ok, err := productRepo.Update(ctx, id, p)
+	prod.Name = "Smartphone"
+	prod.Price = 899.99
+	ok, err := productRepo.Update(ctx, id, prod)
 	require.NoError(t, err)
 	require.True(t, ok)
 

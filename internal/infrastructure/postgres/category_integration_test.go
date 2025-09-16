@@ -1,7 +1,6 @@
 package postgres_test
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -16,7 +15,7 @@ import (
 
 func setupCategoryRepo(t *testing.T) (*postgres.CategoryRepo, func()) {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	req := testcontainers.ContainerRequest{
 		Image:        "postgres:15",
@@ -65,6 +64,7 @@ func setupCategoryRepo(t *testing.T) (*postgres.CategoryRepo, func()) {
 
 	return repo, func() {
 		database.Close()
+
 		_ = container.Terminate(ctx)
 	}
 }
@@ -75,11 +75,11 @@ func TestCategoryRepo_CRUD(t *testing.T) {
 	repo, cleanup := setupCategoryRepo(t)
 	defer cleanup()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	id, err := repo.Create(ctx, domain.Category{Name: "Books"})
 	require.NoError(t, err)
-	require.True(t, id > 0)
+	require.Positive(t, id)
 
 	cat, err := repo.GetByID(ctx, id)
 	require.NoError(t, err)

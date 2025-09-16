@@ -20,31 +20,39 @@ type DBConfig struct {
 
 func (c *DBConfig) Validate() error {
 	if c.Host == "" {
-		return fmt.Errorf("DBHost is required")
+		return fmt.Errorf("config validation: %w", ErrDBHostRequired)
 	}
+
 	if c.Port <= 0 || c.Port > 65535 {
-		return fmt.Errorf("DBPort must be between 1 and 65535")
+		return fmt.Errorf("config validation: %w", ErrDBPortInvalid)
 	}
+
 	if c.User == "" {
-		return fmt.Errorf("DBUser is required")
+		return fmt.Errorf("config validation: %w", ErrDBUserRequired)
 	}
+
 	if c.Password == "" {
-		return fmt.Errorf("DBPassword is required")
+		return fmt.Errorf("config validation: %w", ErrDBPasswordRequired)
 	}
+
 	if c.Name == "" {
-		return fmt.Errorf("DBName is required")
+		return fmt.Errorf("config validation: %w", ErrDBNameRequired)
 	}
+
 	validSSLModes := map[string]bool{
 		"disable": true, "require": true, "verify-ca": true, "verify-full": true,
 	}
+
 	if !validSSLModes[c.SSLMode] {
-		return fmt.Errorf("invalid SSLMode: %s", c.SSLMode)
+		return fmt.Errorf("config validation: %w: %s", ErrInvalidSSLMode, c.SSLMode)
 	}
+
 	return nil
 }
 
 func (c *DBConfig) DSN() string {
 	hostPort := net.JoinHostPort(c.Host, strconv.Itoa(c.Port))
+
 	return fmt.Sprintf("postgres://%s:%s@%s/%s?sslmode=%s",
 		c.User, c.Password, hostPort, c.Name, c.SSLMode)
 }
@@ -55,11 +63,13 @@ type ServerConfig struct {
 
 func (c *ServerConfig) Validate() error {
 	if c.Port == "" {
-		return fmt.Errorf("Server.Port is required")
+		return fmt.Errorf("config validation: %w", ErrServerPortRequired)
 	}
+
 	if _, err := strconv.Atoi(c.Port); err != nil {
-		return fmt.Errorf("Server.Port must be a number")
+		return fmt.Errorf("config validation: %w", ErrServerPortMustBeNumber)
 	}
+
 	return nil
 }
 
@@ -72,8 +82,9 @@ func (c *LoggerConfig) Validate() error {
 		"debug": true, "info": true, "warn": true, "error": true,
 	}
 	if !validLogLevels[strings.ToLower(c.Level)] {
-		return fmt.Errorf("invalid LogLevel: %s", c.Level)
+		return fmt.Errorf("config validation: %w: %s", ErrInvalidLogLevel, c.Level)
 	}
+
 	return nil
 }
 
@@ -83,8 +94,9 @@ type MigrationConfig struct {
 
 func (c *MigrationConfig) Validate() error {
 	if c.Path == "" {
-		return fmt.Errorf("migrations_path is required")
+		return fmt.Errorf("config validation: %w", ErrMigrationsPathRequired)
 	}
+
 	return nil
 }
 
@@ -99,15 +111,19 @@ func (c *Config) Validate() error {
 	if err := c.DB.Validate(); err != nil {
 		return err
 	}
+
 	if err := c.Server.Validate(); err != nil {
 		return err
 	}
+
 	if err := c.Logger.Validate(); err != nil {
 		return err
 	}
+
 	if err := c.Migration.Validate(); err != nil {
 		return err
 	}
+
 	return nil
 }
 

@@ -51,4 +51,4 @@ test-cover:
 .PHONY: lint
 lint:
 	@echo "Running linters..."
-	golangci-lint run ./...
+	golangci-lint run ./... --timeout 3m
