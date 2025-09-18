@@ -1,0 +1,52 @@
+services:
+  db:
+    image: postgres:15
+    container_name: my_postgres
+    environment:
+      POSTGRES_DB: practical3
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Penec
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  app:
+    build: .
+    container_name: my_go_app
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: Penec
+      DB_NAME: practical3
+    command: sh -c "./app --migrate && ./app"
+    volumes:
+      - ./migrations:/app/migrations
+
+  seed:
+    image: postgres:15
+    container_name: product-seed
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: Penec
+    entrypoint: >
+      sh -c "psql -h db -U postgres -d practical3 -f /dump_data.sql"
+    volumes:
+      - ./dump_data.sql:/dump_data.sql
+
+volumes:
+  pg_data:

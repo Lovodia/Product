@@ -1,0 +1,13 @@
+dbhost: db
+dbport: 5432
+dbuser: postgres
+dbpassword: Penec
+dbname: practical3
+sslmode: disable
+
+server:
+  port: "8080"
+
+log_level: "debug"
+
+migrations_path: "./migrations"
