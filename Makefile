@@ -52,3 +52,50 @@ test-cover:
 lint:
 	@echo "Running linters..."
 	golangci-lint run ./... --timeout 3m
+
+.PHONY: docker-build
+docker-build:
+	@echo "Building Docker image..."
+	docker build -t $(APP_NAME) .
+
+.PHONY: docker-up
+docker-up:
+	@echo "Starting docker-compose services..."
+	docker-compose up -d --build
+
+.PHONY: docker-down
+docker-down:
+	@echo "Stopping docker-compose services..."
+	docker-compose down
+
+.PHONY: docker-reset
+docker-reset:
+	@echo "Stopping and removing containers, volumes, networks..."
+	docker-compose down -v
+
+.PHONY: docker-logs
+docker-logs:
+	@echo "Showing logs for app service..."
+	docker logs -f my_go_app
+
+.PHONY: docker-migrate
+docker-migrate:
+	@echo "Running migrations inside Docker container..."
+	docker exec -it my_go_app ./app --migrate
+
+.PHONY: docker-seed
+docker-seed:
+	@echo "Seeding the database with dump_data.sql..."
+	docker cp dump_data.sql my_postgres:/dump_data.sql
+	docker exec -i my_postgres psql -U postgres -d practical3 -f /dump_data.sql
+
+.PHONY: docker-reseed
+docker-reseed:
+	@echo "Restarting seed service..."
+	docker-compose stop seed || true
+	docker-compose rm -f seed || true
+	docker-compose run --rm seed
+
+.PHONY: docker-rebuild-run
+docker-rebuild-run: docker-reset docker-build docker-up docker-seed
+	@echo "Docker containers rebuilt, started and seeded."
